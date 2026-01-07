@@ -1,40 +1,9 @@
 import { useState } from 'react'
 import './App.css'
 
-const userTasksUrl = "https://bikol.vm.wmi.amu.edu.pl/tin/results/"
+const userTasksUrl = "https://bikol.vm.wmi.amu.edu.pl/tin/results"
+const dataUrl = "https://bikol.vm.wmi.amu.edu.pl/tin/tasks"
 
-function getMetaData() {
-  return {
-    "tasks": {
-      "Z1.1": {
-        "deadline": "123:456:123",
-        "maxScore": 10
-      },
-      "Z1.2": {
-        "deadline": "123:456:123",
-        "maxScore": 10
-      }
-    }
-  }
-}
-
-function getTasks(index) {
-  return {
-    "score": 5,
-    "tasks": {
-      "Z1.1": {
-        "time": "2025-10-10T23:12:15+01:00",
-        "score": 2,
-        "info": ""
-      },
-      "Z1.2": {
-        "time": "2025-10-10T23:12:15+01:00",
-        "score": 3,
-        "info": ""
-      }
-    }
-  }
-}
 
 function TaskComponent({name, deadline, scoreDate, score, maxScore}) {
   return (
@@ -47,25 +16,55 @@ function TaskComponent({name, deadline, scoreDate, score, maxScore}) {
   )
 }
 
+const getReadableDate = (dateStr) => {
+  const date = new Date(dateStr);
+
+  const options = {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  };
+
+  const formattedDate = date.toLocaleString('en-US', options);
+  return formattedDate
+}
+
 
 function App() {
   const [tasks, setTasks] = useState([])
+  const [taskMetaData, setTaskMetaData] = useState([])
   const [sumScore, setSumScore] = useState(0)
   const [inputValue, setInputValue] = useState(0)
-  const taskMetaData = getMetaData().tasks
 
-  const findTasks = e => {
-    const taskArray = []
-    const rawTasks = getTasks(inputValue)
-    for(const key of Object.keys(rawTasks.tasks)) {
-      const currentTask = rawTasks.tasks[key]
-      currentTask.key = key 
-      taskArray.push(currentTask)
+  async function findTasks() {
+    try {
+      const userTasks = await fetch(`${userTasksUrl}/${inputValue}`)
+      const data = await userTasks.json()
+
+      const taskMetaDataRaw = await fetch(dataUrl)
+      const taskMetaData = await taskMetaDataRaw.json()
+
+      const taskArray = []
+    
+      for(const key of Object.keys(data.tasks)) {
+        const currentTask = data.tasks[key]
+        currentTask.key = key 
+        taskArray.push(currentTask)
+      }
+      setTaskMetaData(taskMetaData)
+      setSumScore(data.score)
+      setTasks(taskArray)
+    } catch (e) {
+      setTaskMetaData([])
+      setSumScore(0)
+      setTasks([])
     }
-    setSumScore(rawTasks.score)
-    setTasks(taskArray)
-    fetch(`${userTasksUrl}/498815`)
-      .then(res => console.log(res.json()))
+
+    
+    
   }
   
   const onValueChange = e => {
@@ -79,15 +78,15 @@ function App() {
         <button onClick = {findTasks}>Search for tasks</button>
       </div>
       <div id = "main-tasks-area">
-        <p>{sumScore}</p>
+        <p>Sum of your points: {sumScore}</p>
         {tasks.map(task => (
           <TaskComponent
             key={task.key}
             name={task.key}
-            deadline={taskMetaData[task.key]["deadline"]}
-            scoreDate={task.time}
+            deadline={getReadableDate(taskMetaData[task.key]["Deadline"])}
+            scoreDate={getReadableDate(task.time)}
             score={task.score}
-            maxScore={taskMetaData[task.key]["maxScore"]}
+            maxScore={taskMetaData[task.key]["Score"]}
           />
         ))}
       </div>
